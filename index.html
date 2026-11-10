@@ -1,105 +1,203 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Script to Video</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Video Maker</title>
 <style>
-body {
-  margin: 0;
-  padding: 20px;
-  background: #10101c;
-  color: white;
-  font-family: Arial, sans-serif;
-}
-.container {
-  max-width: 500px;
-  margin: auto;
-}
-h1 { color: #a78bfa; text-align: center; }
-textarea, select {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 15px;
-  margin: 10px 0;
-  border-radius: 10px;
-  border: 1px solid #555;
-  background: #222236;
-  color: white;
-  font-size: 16px;
-}
-button {
-  width: 100%;
-  padding: 16px;
-  margin-top: 12px;
-  border: none;
-  border-radius: 10px;
-  background: #8b5cf6;
-  color: white;
-  font-size: 17px;
-  font-weight: bold;
-}
-#result {
-  margin-top: 20px;
-  padding: 15px;
-  background: #222236;
-  border-radius: 10px;
-  white-space: pre-wrap;
-}
+*{box-sizing:border-box}
+body{margin:0;padding:18px;background:#10101c;color:white;font-family:Arial}
+.container{max-width:520px;margin:auto}
+h1{text-align:center;color:#a78bfa}
+textarea,select{width:100%;padding:14px;margin:8px 0 16px;border:1px solid #555;border-radius:10px;background:#24243a;color:white;font-size:16px}
+button{width:100%;padding:15px;margin:7px 0;border:0;border-radius:10px;background:#8b5cf6;color:white;font-size:16px;font-weight:bold}
+.secondary{background:#303047}
+canvas{width:100%;max-height:600px;object-fit:contain;background:#000;border-radius:12px;margin-top:15px}
+#status{color:#c4b5fd;text-align:center;margin:12px}
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>🎬 AI Script to Video</h1>
-  <p>Create videos in any language</p>
+<h1>🎬 AI VIDEO MAKER</h1>
+<p>Create vertical videos from your script</p>
 
-  <h3>Enter Your Script</h3>
-  <textarea id="script" rows="7"
-  placeholder="Write your video script here..."></textarea>
+<h3>1. Enter Your Script</h3>
+<textarea id="script" rows="7" placeholder="Write or paste your video script here..."></textarea>
 
-  <h3>Select Language</h3>
-  <select id="language">
-    <option>English</option>
-    <option>Urdu</option>
-    <option>Hindi</option>
-    <option>Portuguese</option>
-    <option>Spanish</option>
-    <option>Arabic</option>
-    <option>French</option>
-    <option>All Languages</option>
-  </select>
+<h3>2. Select Language</h3>
+<select id="language">
+<option value="en-US">English</option>
+<option value="ur-PK">Urdu</option>
+<option value="hi-IN">Hindi</option>
+<option value="pt-BR">Portuguese</option>
+<option value="es-ES">Spanish</option>
+<option value="ar-SA">Arabic</option>
+<option value="fr-FR">French</option>
+<option value="de-DE">German</option>
+<option value="it-IT">Italian</option>
+<option value="tr-TR">Turkish</option>
+<option value="zh-CN">Chinese</option>
+<option value="ja-JP">Japanese</option>
+</select>
 
-  <h3>Video Format</h3>
-  <select id="format">
-    <option>9:16 TikTok / Shorts</option>
-    <option>16:9 YouTube</option>
-    <option>1:1 Square</option>
-  </select>
+<h3>3. Voice Over</h3>
+<select id="voiceMode">
+<option value="yes">With Voice (browser voice)</option>
+<option value="no">Without Voice</option>
+</select>
 
-  <button onclick="generate()">Generate Video</button>
+<h3>4. Video Format</h3>
+<select id="format">
+<option value="vertical">9:16 TikTok / Shorts</option>
+<option value="square">1:1 Square</option>
+<option value="wide">16:9 YouTube</option>
+</select>
 
-  <div id="result"></div>
+<button onclick="previewVoice()">🔊 Preview Voice</button>
+<button onclick="stopVoice()" class="secondary">Stop Voice</button>
+<button onclick="makeVideo()">🎥 Create Video</button>
+
+<canvas id="video" width="540" height="960"></canvas>
+<div id="status">Your video is ready to create.</div>
+
+<button onclick="downloadVideo()" class="secondary">⬇ Download Video</button>
 </div>
 
 <script>
-function generate() {
-  const script = document.getElementById("script").value;
-  const language = document.getElementById("language").value;
-  const format = document.getElementById("format").value;
+const canvas=document.getElementById("video");
+const ctx=canvas.getContext("2d");
+let recorder=null, chunks=[], videoURL=null, animation=null;
+let running=false, scenes=[], startTime=0;
 
-  if (!script.trim()) {
-    alert("Please enter your script first!");
-    return;
-  }
-
-  document.getElementById("result").innerText =
-    "Your video project is ready to connect!\n\n" +
-    "Language: " + language +
-    "\nFormat: " + format +
-    "\n\nScript:\n" + script +
-    "\n\nAI video generation API needs to be connected.";
+function prepare(){
+ const text=document.getElementById("script").value.trim();
+ if(!text){alert("Please enter your script!");return false;}
+ scenes=text.split(/(?<=[.!?۔])\s+/).filter(x=>x.trim());
+ if(!scenes.length) scenes=[text];
+ return true;
 }
+
+function resizeCanvas(){
+ const f=document.getElementById("format").value;
+ if(f==="square"){canvas.width=800;canvas.height=800;}
+ else if(f==="wide"){canvas.width=960;canvas.height=540;}
+ else{canvas.width=540;canvas.height=960;}
+}
+
+function drawScene(index){
+ const w=canvas.width,h=canvas.height;
+ const colors=[
+ ["#10102c","#532a78"],
+ ["#091b35","#176b87"],
+ ["#291331","#8b3567"],
+ ["#142d27","#397a52"]
+ ];
+ const c=colors[index%colors.length];
+ const gradient=ctx.createLinearGradient(0,0,w,h);
+ gradient.addColorStop(0,c[0]);
+ gradient.addColorStop(1,c[1]);
+ ctx.fillStyle=gradient;
+ ctx.fillRect(0,0,w,h);
+
+ ctx.textAlign="center";
+ ctx.fillStyle="#f5d47b";
+ ctx.font="bold "+Math.max(20,w*.045)+"px Arial";
+ ctx.fillText("YOUR STORY",w/2,h*.19);
+
+ const text=scenes[index]||"";
+ const maxWidth=w*.82;
+ let words=text.split(/\s+/),lines=[],line="";
+ ctx.font="bold "+Math.max(25,w*.065)+"px Arial";
+ words.forEach(word=>{
+   let test=line?line+" "+word:word;
+   if(ctx.measureText(test).width>maxWidth && line){
+     lines.push(line);line=word;
+   }else{line=test;}
+ });
+ if(line)lines.push(line);
+
+ const lineHeight=w*.105;
+ let y=h/2-(lines.length*lineHeight)/2;
+ ctx.fillStyle="white";
+ lines.forEach(l=>{
+   ctx.fillText(l,w/2,y);
+   y+=lineHeight;
+ });
+
+ ctx.fillStyle="#f5d47b";
+ ctx.font="bold "+Math.max(16,w*.035)+"px Arial";
+ ctx.fillText("FOLLOW FOR MORE",w/2,h*.88);
+
+ ctx.fillStyle="rgba(255,255,255,.6)";
+ ctx.font="16px Arial";
+ ctx.fillText((index+1)+" / "+scenes.length,w/2,h*.94);
+}
+
+function makeVideo(){
+ if(!prepare())return;
+ stopVoice();
+ resizeCanvas();
+ if(videoURL){URL.revokeObjectURL(videoURL);videoURL=null;}
+ chunks=[];
+ running=true;
+ startTime=performance.now();
+ document.getElementById("status").innerText="Creating your video...";
+
+ const stream=canvas.captureStream(25);
+ const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+ ? "video/webm;codecs=vp9":"video/webm";
+ try{recorder=new MediaRecorder(stream,{mimeType:mime});}
+ catch(e){recorder=new MediaRecorder(stream);}
+
+ recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+ recorder.onstop=()=>{
+   videoURL=URL.createObjectURL(new Blob(chunks,{type:"video/webm"}));
+   document.getElementById("status").innerText="Video created! Download your video below.";
+ };
+ recorder.start();
+
+ const duration=3000;
+ function frame(now){
+   if(!running)return;
+   let elapsed=now-startTime;
+   let index=Math.floor(elapsed/duration);
+   if(index>=scenes.length){
+     running=false;
+     recorder.stop();
+     return;
+   }
+   drawScene(index);
+   animation=requestAnimationFrame(frame);
+ }
+ animation=requestAnimationFrame(frame);
+}
+
+function downloadVideo(){
+ if(!videoURL){alert("Create your video first!");return;}
+ const a=document.createElement("a");
+ a.href=videoURL;
+ a.download="my-ai-video.webm";
+ a.click();
+}
+
+function previewVoice(){
+ if(!prepare())return;
+ if(!("speechSynthesis" in window)){
+   alert("Voice is not supported in this browser.");return;
+ }
+ stopVoice();
+ let utterance=new SpeechSynthesisUtterance(scenes.join(" "));
+ utterance.lang=document.getElementById("language").value;
+ utterance.rate=0.9;
+ speechSynthesis.speak(utterance);
+ document.getElementById("status").innerText="Playing voice preview...";
+}
+
+function stopVoice(){
+ if("speechSynthesis" in window)speechSynthesis.cancel();
+}
+
+drawScene(0);
 </script>
 </body>
 </html>
