@@ -1,11 +1,105 @@
-script to video 
-9:16 script to video 
-auto caption 
-auto background 
-all language 
-ai 50 voiceover
-script to video 16:9
-script and caption add 
-4K quality 
-video picture all script 
-3000 character
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Script to Video</title>
+<style>
+body {
+  margin: 0;
+  padding: 20px;
+  background: #10101c;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+.container {
+  max-width: 500px;
+  margin: auto;
+}
+h1 { color: #a78bfa; text-align: center; }
+textarea, select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 15px;
+  margin: 10px 0;
+  border-radius: 10px;
+  border: 1px solid #555;
+  background: #222236;
+  color: white;
+  font-size: 16px;
+}
+button {
+  width: 100%;
+  padding: 16px;
+  margin-top: 12px;
+  border: none;
+  border-radius: 10px;
+  background: #8b5cf6;
+  color: white;
+  font-size: 17px;
+  font-weight: bold;
+}
+#result {
+  margin-top: 20px;
+  padding: 15px;
+  background: #222236;
+  border-radius: 10px;
+  white-space: pre-wrap;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🎬 AI Script to Video</h1>
+  <p>Create videos in any language</p>
+
+  <h3>Enter Your Script</h3>
+  <textarea id="script" rows="7"
+  placeholder="Write your video script here..."></textarea>
+
+  <h3>Select Language</h3>
+  <select id="language">
+    <option>English</option>
+    <option>Urdu</option>
+    <option>Hindi</option>
+    <option>Portuguese</option>
+    <option>Spanish</option>
+    <option>Arabic</option>
+    <option>French</option>
+    <option>All Languages</option>
+  </select>
+
+  <h3>Video Format</h3>
+  <select id="format">
+    <option>9:16 TikTok / Shorts</option>
+    <option>16:9 YouTube</option>
+    <option>1:1 Square</option>
+  </select>
+
+  <button onclick="generate()">Generate Video</button>
+
+  <div id="result"></div>
+</div>
+
+<script>
+function generate() {
+  const script = document.getElementById("script").value;
+  const language = document.getElementById("language").value;
+  const format = document.getElementById("format").value;
+
+  if (!script.trim()) {
+    alert("Please enter your script first!");
+    return;
+  }
+
+  document.getElementById("result").innerText =
+    "Your video project is ready to connect!\n\n" +
+    "Language: " + language +
+    "\nFormat: " + format +
+    "\n\nScript:\n" + script +
+    "\n\nAI video generation API needs to be connected.";
+}
+</script>
+</body>
+</html>
