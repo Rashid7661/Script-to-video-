@@ -2,30 +2,38 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Video Maker</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Script To Video Studio</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;padding:18px;background:#10101c;color:white;font-family:Arial}
-.container{max-width:520px;margin:auto}
-h1{text-align:center;color:#a78bfa}
-textarea,select{width:100%;padding:14px;margin:8px 0 16px;border:1px solid #555;border-radius:10px;background:#24243a;color:white;font-size:16px}
-button{width:100%;padding:15px;margin:7px 0;border:0;border-radius:10px;background:#8b5cf6;color:white;font-size:16px;font-weight:bold}
-.secondary{background:#303047}
-canvas{width:100%;max-height:600px;object-fit:contain;background:#000;border-radius:12px;margin-top:15px}
-#status{color:#c4b5fd;text-align:center;margin:12px}
+body{margin:0;background:#10101b;color:white;font-family:Arial;padding:18px}
+.app{max-width:550px;margin:auto}
+h1{text-align:center;color:#b69aff}
+p{color:#bbb}
+label{display:block;margin-top:16px;font-weight:bold}
+input,textarea,select{width:100%;padding:13px;margin-top:8px;border:1px solid #444;border-radius:9px;background:#252538;color:white;font-size:15px}
+textarea{height:150px}
+button{width:100%;padding:15px;margin-top:12px;background:#8055ee;color:white;border:0;border-radius:10px;font-size:16px;font-weight:bold}
+button.secondary{background:#343449}
+canvas{width:100%;margin-top:18px;border-radius:12px;background:black}
+#status{padding:12px;color:#c5aaff;text-align:center}
+small{color:#aaa}
 </style>
 </head>
 <body>
-<div class="container">
-<h1>🎬 AI VIDEO MAKER</h1>
-<p>Create vertical videos from your script</p>
+<div class="app">
+<h1>🎬 AI VIDEO STUDIO</h1>
+<p>Turn your script into cinematic videos.</p>
 
-<h3>1. Enter Your Script</h3>
-<textarea id="script" rows="7" placeholder="Write or paste your video script here..."></textarea>
+<label>Pexels API Key</label>
+<input id="apiKey" placeholder="Paste your free Pexels API key">
+<small>Get a free key at www.pexels.com/api/</small>
 
-<h3>2. Select Language</h3>
-<select id="language">
+<label>Your Video Script</label>
+<textarea id="script" placeholder="Paste your complete video script here..."></textarea>
+
+<label>Language</label>
+<select id="lang">
 <option value="en-US">English</option>
 <option value="ur-PK">Urdu</option>
 <option value="hi-IN">Hindi</option>
@@ -34,170 +42,255 @@ canvas{width:100%;max-height:600px;object-fit:contain;background:#000;border-rad
 <option value="ar-SA">Arabic</option>
 <option value="fr-FR">French</option>
 <option value="de-DE">German</option>
-<option value="it-IT">Italian</option>
-<option value="tr-TR">Turkish</option>
-<option value="zh-CN">Chinese</option>
-<option value="ja-JP">Japanese</option>
 </select>
 
-<h3>3. Voice Over</h3>
-<select id="voiceMode">
-<option value="yes">With Voice (browser voice)</option>
+<label>Voice</label>
+<select id="voice">
+<option value="yes">With Voice Preview</option>
 <option value="no">Without Voice</option>
 </select>
 
-<h3>4. Video Format</h3>
+<label>Video Format</label>
 <select id="format">
 <option value="vertical">9:16 TikTok / Shorts</option>
-<option value="square">1:1 Square</option>
 <option value="wide">16:9 YouTube</option>
 </select>
 
 <button onclick="previewVoice()">🔊 Preview Voice</button>
-<button onclick="stopVoice()" class="secondary">Stop Voice</button>
-<button onclick="makeVideo()">🎥 Create Video</button>
+<button class="secondary" onclick="stopVoice()">Stop Voice</button>
+<button onclick="createVideo()">🎥 Generate Video</button>
 
-<canvas id="video" width="540" height="960"></canvas>
-<div id="status">Your video is ready to create.</div>
-
-<button onclick="downloadVideo()" class="secondary">⬇ Download Video</button>
+<div id="status">Ready to create your video.</div>
+<canvas id="screen" width="540" height="960"></canvas>
+<button class="secondary" onclick="downloadVideo()">⬇ Download Video</button>
 </div>
 
 <script>
-const canvas=document.getElementById("video");
+const canvas=document.getElementById("screen");
 const ctx=canvas.getContext("2d");
-let recorder=null, chunks=[], videoURL=null, animation=null;
-let running=false, scenes=[], startTime=0;
+let scenes=[];
+let clips=[];
+let current=0;
+let recorder;
+let chunks=[];
+let videoUrl=null;
+let running=false;
+let frameTimer=null;
+let currentVideo=null;
+let sceneStart=0;
 
-function prepare(){
- const text=document.getElementById("script").value.trim();
- if(!text){alert("Please enter your script!");return false;}
- scenes=text.split(/(?<=[.!?۔])\s+/).filter(x=>x.trim());
- if(!scenes.length) scenes=[text];
- return true;
+function splitScenes(text){
+ return text.split(/(?<=[.!?۔])\s+/).filter(s=>s.trim().length>0);
 }
 
-function resizeCanvas(){
- const f=document.getElementById("format").value;
- if(f==="square"){canvas.width=800;canvas.height=800;}
- else if(f==="wide"){canvas.width=960;canvas.height=540;}
- else{canvas.width=540;canvas.height=960;}
-}
-
-function drawScene(index){
+function drawBackground(){
  const w=canvas.width,h=canvas.height;
- const colors=[
- ["#10102c","#532a78"],
- ["#091b35","#176b87"],
- ["#291331","#8b3567"],
- ["#142d27","#397a52"]
- ];
- const c=colors[index%colors.length];
- const gradient=ctx.createLinearGradient(0,0,w,h);
- gradient.addColorStop(0,c[0]);
- gradient.addColorStop(1,c[1]);
- ctx.fillStyle=gradient;
+ ctx.fillStyle="#15152b";
+ ctx.fillRect(0,0,w,h);
+ ctx.fillStyle="white";
+ ctx.textAlign="center";
+ ctx.font="bold 28px Arial";
+ ctx.fillText("AI VIDEO STUDIO",w/2,80);
+}
+
+function drawFrame(){
+ const w=canvas.width,h=canvas.height;
+ ctx.fillStyle="#111";
  ctx.fillRect(0,0,w,h);
 
- ctx.textAlign="center";
- ctx.fillStyle="#f5d47b";
- ctx.font="bold "+Math.max(20,w*.045)+"px Arial";
- ctx.fillText("YOUR STORY",w/2,h*.19);
+ if(currentVideo && currentVideo.readyState>=2){
+  const vw=currentVideo.videoWidth;
+  const vh=currentVideo.videoHeight;
+  const scale=Math.max(w/vw,h/vh);
+  const dw=vw*scale,dh=vh*scale;
+  ctx.drawImage(currentVideo,(w-dw)/2,(h-dh)/2,dw,dh);
+ }else{
+  ctx.fillStyle="#27213d";
+  ctx.fillRect(0,0,w,h);
+ }
 
- const text=scenes[index]||"";
- const maxWidth=w*.82;
- let words=text.split(/\s+/),lines=[],line="";
- ctx.font="bold "+Math.max(25,w*.065)+"px Arial";
+ ctx.fillStyle="rgba(0,0,0,.55)";
+ ctx.fillRect(0,h*.35,w,h*.3);
+
+ ctx.fillStyle="white";
+ ctx.textAlign="center";
+ ctx.font="bold 34px Arial";
+ const words=(scenes[current]||"").split(" ");
+ let lines=[],line="";
  words.forEach(word=>{
-   let test=line?line+" "+word:word;
-   if(ctx.measureText(test).width>maxWidth && line){
-     lines.push(line);line=word;
-   }else{line=test;}
+  const test=line?line+" "+word:word;
+  if(ctx.measureText(test).width>w*.85 && line){
+   lines.push(line);line=word;
+  }else line=test;
  });
  if(line)lines.push(line);
-
- const lineHeight=w*.105;
+ const lineHeight=43;
  let y=h/2-(lines.length*lineHeight)/2;
- ctx.fillStyle="white";
- lines.forEach(l=>{
-   ctx.fillText(l,w/2,y);
-   y+=lineHeight;
+ lines.forEach(t=>{
+  ctx.fillText(t,w/2,y);
+  y+=lineHeight;
  });
-
  ctx.fillStyle="#f5d47b";
- ctx.font="bold "+Math.max(16,w*.035)+"px Arial";
- ctx.fillText("FOLLOW FOR MORE",w/2,h*.88);
-
- ctx.fillStyle="rgba(255,255,255,.6)";
- ctx.font="16px Arial";
- ctx.fillText((index+1)+" / "+scenes.length,w/2,h*.94);
+ ctx.font="bold 18px Arial";
+ ctx.fillText("YOUR CHANNEL",w/2,h-55);
 }
 
-function makeVideo(){
- if(!prepare())return;
+async function searchClip(query,key){
+ const url="https://api.pexels.com/videos/search?query="+encodeURIComponent(query)+"&orientation=portrait&per_page=5";
+ const response=await fetch(url,{headers:{"Authorization":key}});
+ if(!response.ok)throw Error("Pexels API error: "+response.status);
+ const data=await response.json();
+ if(!data.videos || !data.videos.length)return null;
+ const video=data.videos[0];
+ const files=video.video_files.filter(f=>f.link && f.width>=300);
+ files.sort((a,b)=>Math.abs(a.width-720)-Math.abs(b.width-720));
+ return files.length?files[0].link:null;
+}
+
+async function createVideo(){
+ const text=document.getElementById("script").value.trim();
+ const key=document.getElementById("apiKey").value.trim();
+ if(!text){alert("Enter your script first.");return;}
+ if(!key){alert("Enter your free Pexels API key first.");return;}
+
  stopVoice();
- resizeCanvas();
- if(videoURL){URL.revokeObjectURL(videoURL);videoURL=null;}
- chunks=[];
- running=true;
- startTime=performance.now();
- document.getElementById("status").innerText="Creating your video...";
+ scenes=splitScenes(text);
+ clips=[];
+ current=0;
+ running=false;
+ if(frameTimer)cancelAnimationFrame(frameTimer);
 
- const stream=canvas.captureStream(25);
- const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
- ? "video/webm;codecs=vp9":"video/webm";
- try{recorder=new MediaRecorder(stream,{mimeType:mime});}
- catch(e){recorder=new MediaRecorder(stream);}
+ const format=document.getElementById("format").value;
+ canvas.width=format==="wide"?960:540;
+ canvas.height=format==="wide"?540:960;
 
- recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
- recorder.onstop=()=>{
-   videoURL=URL.createObjectURL(new Blob(chunks,{type:"video/webm"}));
-   document.getElementById("status").innerText="Video created! Download your video below.";
- };
- recorder.start();
+ document.getElementById("status").innerText="Finding background videos...";
 
- const duration=3000;
- function frame(now){
-   if(!running)return;
-   let elapsed=now-startTime;
-   let index=Math.floor(elapsed/duration);
-   if(index>=scenes.length){
-     running=false;
-     recorder.stop();
-     return;
-   }
-   drawScene(index);
-   animation=requestAnimationFrame(frame);
+ try{
+  for(let i=0;i<scenes.length;i++){
+   document.getElementById("status").innerText=
+    "Finding background "+(i+1)+" of "+scenes.length;
+   const words=scenes[i].replace(/[^\w\s]/g,"").split(/\s+/);
+   const query=words.slice(0,5).join(" ");
+   const link=await searchClip(query,key);
+   clips.push(link);
+  }
+  if(!clips.some(Boolean)){
+   throw Error("No videos found. Try another script.");
+  }
+  await playVideo();
+ }catch(e){
+  document.getElementById("status").innerText=e.message;
+  drawBackground();
  }
- animation=requestAnimationFrame(frame);
 }
 
-function downloadVideo(){
- if(!videoURL){alert("Create your video first!");return;}
- const a=document.createElement("a");
- a.href=videoURL;
- a.download="my-ai-video.webm";
- a.click();
+function playVideo(){
+ return new Promise((resolve,reject)=>{
+  current=0;
+  chunks=[];
+  running=true;
+  if(videoUrl){URL.revokeObjectURL(videoUrl);videoUrl=null;}
+
+  const stream=canvas.captureStream(25);
+  const type=MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+   ?"video/webm;codecs=vp9":"video/webm";
+
+  recorder=new MediaRecorder(stream,{mimeType:type});
+  recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+  recorder.onstop=()=>{
+   running=false;
+   videoUrl=URL.createObjectURL(new Blob(chunks,{type:"video/webm"}));
+   document.getElementById("status").innerText="Video completed! Download below.";
+   resolve();
+  };
+  recorder.onerror=()=>reject(Error("Recording failed."));
+  recorder.start();
+
+  startScene();
+ });
+}
+
+function startScene(){
+ if(!running)return;
+ if(current>=scenes.length){
+  recorder.stop();
+  return;
+ }
+
+ const link=clips[current];
+ if(!link){
+  currentVideo=null;
+  sceneStart=Date.now();
+  drawFrame();
+  frameTimer=setInterval(()=>{
+   drawFrame();
+   if(Date.now()-sceneStart>=4000){
+    clearInterval(frameTimer);
+    current++;
+    startScene();
+   }
+  },40);
+  return;
+ }
+
+ currentVideo=document.createElement("video");
+ currentVideo.crossOrigin="anonymous";
+ currentVideo.muted=true;
+ currentVideo.playsInline=true;
+ currentVideo.src=link;
+ currentVideo.onloadeddata=()=>{
+  currentVideo.play().catch(()=>{});
+  sceneStart=Date.now();
+  const render=()=>{
+   if(!running)return;
+   drawFrame();
+   if(Date.now()-sceneStart>=4000){
+    currentVideo.pause();
+    current++;
+    startScene();
+   }else requestAnimationFrame(render);
+  };
+  requestAnimationFrame(render);
+ };
+ currentVideo.onerror=()=>{
+  currentVideo=null;
+  sceneStart=Date.now();
+  const render=()=>{
+   if(!running)return;
+   drawFrame();
+   if(Date.now()-sceneStart>=4000){
+    current++;
+    startScene();
+   }else requestAnimationFrame(render);
+  };
+  requestAnimationFrame(render);
+ };
 }
 
 function previewVoice(){
- if(!prepare())return;
- if(!("speechSynthesis" in window)){
-   alert("Voice is not supported in this browser.");return;
- }
+ const text=document.getElementById("script").value.trim();
+ if(!text){alert("Enter a script first.");return;}
+ if(!window.speechSynthesis){alert("Voice is not supported.");return;}
  stopVoice();
- let utterance=new SpeechSynthesisUtterance(scenes.join(" "));
- utterance.lang=document.getElementById("language").value;
- utterance.rate=0.9;
- speechSynthesis.speak(utterance);
- document.getElementById("status").innerText="Playing voice preview...";
+ const u=new SpeechSynthesisUtterance(text);
+ u.lang=document.getElementById("lang").value;
+ speechSynthesis.speak(u);
 }
 
 function stopVoice(){
- if("speechSynthesis" in window)speechSynthesis.cancel();
+ if(window.speechSynthesis)speechSynthesis.cancel();
 }
 
-drawScene(0);
+function downloadVideo(){
+ if(!videoUrl){alert("Generate your video first.");return;}
+ const a=document.createElement("a");
+ a.href=videoUrl;
+ a.download="AI-Cinematic-Video.webm";
+ a.click();
+}
+
+drawBackground();
 </script>
 </body>
 </html>
